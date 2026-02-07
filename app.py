@@ -1,5 +1,6 @@
 import streamlit as st
 import sqlite3
+import pandas as pd
 
 # -------------------------------
 # DATABASE SETUP
@@ -48,7 +49,7 @@ if cursor.fetchone()[0] == 0:
     conn.commit()
 
 # -------------------------------
-# USER HISTORY TABLE (NEW)
+# USER HISTORY TABLE
 # -------------------------------
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_history (
@@ -91,6 +92,7 @@ def ai_recommend_with_score(interest, skill, score):
             best_match = c
 
     return best_match, best_score
+
 
 def generate_explanation(interest, skill, score, career, match_score):
     return f"""
@@ -152,9 +154,7 @@ if st.button("🚀 Get AI Recommendation"):
                 interest, skill, score, data[0], match_score
             )
 
-            # -------------------------------
-            # SAVE USER DATA (IMPORTANT)
-            # -------------------------------
+            # SAVE USER DATA
             cursor.execute("""
             INSERT INTO user_history
             (name, interest, skill, score, recommended_career, match_score)
@@ -169,9 +169,7 @@ if st.button("🚀 Get AI Recommendation"):
             ))
             conn.commit()
 
-            # -------------------------------
             # RESULT CARD
-            # -------------------------------
             st.markdown("---")
             st.markdown(
                 f"""
@@ -197,3 +195,40 @@ if st.button("🚀 Get AI Recommendation"):
 
 st.markdown("---")
 st.caption("Next-Gen AI Hackathon | SCCE WINNERS 🏆")
+
+# ------------------------------------------------------------
+# DATABASE VIEWER (ADMIN MODE)
+# ------------------------------------------------------------
+
+st.markdown("## 🗄 Database Viewer (Admin Only)")
+
+admin_mode = st.checkbox("Enable Admin Mode")
+
+if admin_mode:
+    st.success("Admin mode activated. Database visible.")
+
+    # Show all tables
+    st.subheader("📌 Tables in Database:")
+    tables = cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()
+
+    table_names = [t[0] for t in tables]
+    st.write(table_names)
+
+    if len(table_names) > 0:
+        selected_table = st.selectbox("Select table", table_names)
+
+        st.subheader(f"📄 Table: {selected_table}")
+
+        try:
+            df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
+            st.dataframe(df)
+
+            count = cursor.execute(
+                f"SELECT COUNT(*) FROM {selected_table}"
+            ).fetchone()[0]
+            st.info(f"Total Rows: {count}")
+
+        except Exception as e:
+            st.error(f"Error loading table: {e}")
